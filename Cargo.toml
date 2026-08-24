@@ -1,0 +1,32 @@
+[package]
+name = "bloop"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "bloop"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "bloop"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli", "llvm"]
+cli = ["dep:crossterm"]
+llvm = ["dep:inkwell"]
+wasm = ["dep:wasm-bindgen", "dep:console_error_panic_hook"]
+
+[dependencies]
+crossterm = { version = "0.28", optional = true }
+inkwell = { version = "0.8.0", features = ["llvm20-1"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+
+# Skips wasm-pack's wasm-opt pass, which otherwise downloads a binaryen
+# release from GitHub on first build -- an extra external dependency this
+# small demo REPL's binary size doesn't need.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

@@ -1,0 +1,16 @@
+/target
+/test/*
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+
+# LLVM IR/bitcode/assembly output from `cargo run -- -c file.blp`
+*.ll
+*.bc
+*.s
+
+# wasm-bindgen/wasm-pack output
+/www/pkg/

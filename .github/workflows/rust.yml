@@ -1,0 +1,72 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  # inkwell/llvm-sys need llvm-config for this exact major.minor version,
+  # which ubuntu-latest doesn't ship by default (see the LLVM install step).
+  LLVM_SYS_201_PREFIX: /usr/lib/llvm-20
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install LLVM 20
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 20
+        # inkwell links against every LLVM component unconditionally,
+        # including Polly, which llvm.sh doesn't install by default.
+        sudo apt-get install -y libpolly-20-dev
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+
+  build-wasm:
+    # Independent job (no LLVM install step): the wasm build excludes the
+    # `llvm` feature entirely, since inkwell/llvm-sys can't target wasm32.
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build wasm package
+      run: ./scripts/build-web.sh
+
+  deploy-pages:
+    # Publishes the www/ demo page to GitHub Pages. Runs on pushes to main,
+    # or manually (Actions tab -> this workflow -> Run workflow, picking any
+    # branch) to preview a branch before it's merged. Requires Pages to be
+    # enabled once, with source set to "GitHub Actions"
+    # (Settings -> Pages -> Build and deployment -> Source).
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build wasm package
+      run: ./scripts/build-web.sh
+    - uses: actions/configure-pages@v5
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: www
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
